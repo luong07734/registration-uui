@@ -1,102 +1,66 @@
 import React from "react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import axios from 'axios'
+import { useForm } from 'react-hook-form'
+import { ErrorMessage } from "@hookform/error-message";
+import { Link } from "react-router-dom";
+import { useMutation, useQueryClient } from "react-query";
+import CircularProgress from '@material-ui/core/CircularProgress';
+const BASE_URL = 'https://registration-api-ia2.herokuapp.com/users/register'
 
-const USER_REGEX = /^.{4,24}$/;
-const PWD_REGEX = /^.{8,24}$/;
-const EMAIL_REGEX = /@/;
+const addUser = async (data) => {
+    return await axios.post(BASE_URL, {
+        fullname: data.fullname, email: data.email, password: data.password
+    })
+}
+
 
 function Form(props) {
-    // hooks
-    const [fullname, setFullname] = useState('');
-    const [validFullname, setValidFullname] = useState(false);
-    const [fullnameInputFocus, setFullnameInputFocus] = useState(false);
-
-    const [email, setEmail] = useState('');
-    const [validEmail, setValidEmail] = useState(false);
-    const [emailInputFocus, setEmailInputFocus] = useState(false);
-
-    const [password, setPassword] = useState('');
-    const [validPassword, setValidPassword] = useState(false);
-    const [passwordInputFocus, setPasswordInputFocus] = useState(false);
-
-    const [matchPassword, setMatchPassword] = useState('');
-    const [validMatch, setValidMatch] = useState(false);
-    const [matchFocus, setMatchFocus] = useState(false);
-
+    const queryClient = useQueryClient();
     const [errMsg, setErrMsg] = useState('');
     const [success, setSuccess] = useState(false);
-
-    const fullnameRef = useRef();
     const errorRef = useRef();
+    const { register, handleSubmit, watch, formState: { errors } } = useForm({
+        criteriaMode: "all"
+    });
+    const password = useRef({});
+    password.current = watch("password", "");
 
-    useEffect(() => {
-        fullnameRef.current.focus();
-    }, [])
-
-    useEffect(() => {
-        const result = USER_REGEX.test(fullname);
-        console.log(result);
-        console.log(fullname);
-        setValidFullname(result);
-    }, [fullname])
-
-    useEffect(() => {
-        const result = EMAIL_REGEX.test(email);
-        console.log(result);
-        console.log(email);
-        setValidEmail(result);
-    }, [email])
-
-    useEffect(() => {
-        const result = PWD_REGEX.test(password);
-        console.log(result);
-        console.log(password);
-        setValidPassword(result);
-        const match = (password === matchPassword);
-        setValidMatch(match);
-    }, [password, matchPassword])
-
-    useEffect(() => {
-        setErrMsg('')
-    }, [fullname, email, password, matchPassword])
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            // post api
-            axios.post('https://registration-api-ia2.herokuapp.com/users/register', {
-                fullname: fullname, email: email, password: password
-            }).then((response) => {
-                console.log(response.data);
-                console.log(response.status);
-                console.log(response.statusText);
-                console.log(response.headers);
-                console.log(response.config);
-                setSuccess(true);
-                //clear state and controlled inputs
-                //need value attrib on inputs for this
-                setFullname('');
-                setPassword('');
-                setMatchPassword('');
-            }, (error) => {
-                console.log(error);
+    const { mutate, isLoading } = useMutation(addUser, {
+        onSuccess: data => {
+            //   console.log(data);
+            //   const message = "success"
+            //   alert(message)
+            setSuccess(true);
+        },
+        onError: (message) => {
+            if (message.toString().includes('409')) {
                 setErrMsg('Email has already been taken');
-                errorRef.current.focus();
-            });
+            }
+            else {
+                setErrMsg('Register failed. Unknown error');
+            }
 
-        } catch (err) {
-            setErrMsg('Register failed');
-            errorRef.current.focus();
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries('create');
         }
-    }
+    });
+
+    const onSubmit = (data) => {
+        mutate(data);
+    };
+
     return (
         <>
             {success ? (
                 <section>
                     <h1>Register Success!</h1>
+                    <nav>
+                        <Link to="/signin">Sign in</Link>
+                    </nav>
                     <p>
                         <a href=".">Back</a>
                     </p>
@@ -105,75 +69,99 @@ function Form(props) {
                 <section>
                     <p ref={errorRef} className={errMsg ? "errormsg" : "disable"} >{errMsg}</p>
                     <h1>Registration Form</h1>
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit(onSubmit)}>
                         <label htmlFor="fullname">Fullname:</label>
                         <input
+                            {...register("fullname", {
+                                required: "This input is required.",
+                                minLength: {
+                                    value: 4,
+                                    message: "This input must have at least 4 characters."
+                                },
+                                maxLength: {
+                                    value: 24,
+                                    message: "This input must not exceed 24 characters"
+                                }
+
+                            })}
                             type="text"
                             id="fullname"
-                            ref={fullnameRef}
-                            autoComplete="off"
-                            onChange={(e) => setFullname(e.target.value)}
-                            value={fullname}
-                            required
-                            onFocus={() => setFullnameInputFocus(true)}
-                            onBlur={() => setFullnameInputFocus(false)}
-
                         />
-                        <p className={fullnameInputFocus && fullname && !validFullname ? "requirements" : "disable"}>
+
+                        {errors.fullname && <p className="requirements">
                             <FontAwesomeIcon icon={faInfoCircle} />
-                            4 to 24 characters.<br />
-                        </p>
+                            {errors.fullname.message}<br />
+                        </p>}
+
                         <label htmlFor="email">Email:</label>
                         <input
+                            {...register("email", {
+                                required: "This input is required.",
+                                pattern: {
+                                    value: /@/,
+                                    message: "This input must include @."
+                                },
+
+                            })}
                             type="text"
                             id="email"
-                            autoComplete="off"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            onFocus={() => setEmailInputFocus(true)}
-                            onBlur={() => setEmailInputFocus(false)}
-
                         />
-                        <p className={emailInputFocus && !validEmail ? "requirements" : "disable"}>
+
+                        {errors.email && <p className="requirements">
                             <FontAwesomeIcon icon={faInfoCircle} />
-                            Must include @<br />
-                        </p>
+                            {errors.email.message}<br />
+                        </p>}
 
                         <label htmlFor="password">Password:</label>
                         <input
                             type="password"
                             id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            onFocus={() => setPasswordInputFocus(true)}
-                            onBlur={() => setPasswordInputFocus(false)}
+                            name="password"
+                            {...register("password", {
+                                required: "You must specify a password.",
+                                minLength: {
+                                    value: 8,
+                                    message: "Password must have at least 8 characters."
+                                },
+                                maxLength: {
+                                    value: 24,
+                                    message: "Password must not exceed 24 characters."
+                                }
 
+                            })}
                         />
-                        <p className={passwordInputFocus && !validPassword ? "requirements" : "disable"}>
+
+                        {errors.password && <p className="requirements">
                             <FontAwesomeIcon icon={faInfoCircle} />
-                            8 to 24 characters.<br />
-                        </p>
+                            {errors.password.message}<br />
+                        </p>}
 
                         <label htmlFor="confirm_password">Confirm Password:</label>
                         <input
                             type="password"
                             id="confirm_password"
-                            value={matchPassword}
-                            onChange={(e) => setMatchPassword(e.target.value)}
-                            required
-                            onFocus={() => setMatchFocus(true)}
-                            onBlur={() => setMatchFocus(false)}
-
+                            name="confirm_password"
+                            {...register("confirm_password", {
+                                validate: value =>
+                                    value === password.current || "The password do not match"
+                            })}
                         />
-                        <p id="confirmnote" className={matchFocus && !validMatch ? "requirements" : "disable"}>
+                        {errors.confirm_password && <p className="requirements">
                             <FontAwesomeIcon icon={faInfoCircle} />
-                            Must match the above password.
-                        </p>
-
-                        <button disabled={!validFullname || !validPassword || !validMatch ? true : false}>Sign Up</button>
+                            {errors.confirm_password.message}<br />
+                        </p>}
+                        {isLoading && <span><CircularProgress color="secondary" /><div>Loading....</div></span>}
+                        <button type="submit" disabled={isLoading}
+                        >Sign Up</button>
                     </form>
+                    <p>
+                        Already registered?<br />
+                        <span className="line">
+                            <nav>
+                                <Link to="/signin">Sign in</Link>
+                            </nav>
+                        </span>
+                    </p>
                 </section>
             )}
         </>
