@@ -8,13 +8,14 @@ import { ErrorMessage } from "@hookform/error-message";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "react-query";
 import CircularProgress from '@material-ui/core/CircularProgress';
-const BASE_URL = 'https://registration-api-ia2.herokuapp.com/users/register'
+import { signup } from "../apis";
+// const BASE_URL = 'http://localhost:3000/users/register'
 
-const addUser = async (data) => {
-    return await axios.post(BASE_URL, {
-        fullname: data.fullname, email: data.email, password: data.password
-    })
-}
+// const addUser = async (data) => {
+//     return await axios.post(BASE_URL, {
+//         fullname: data.fullname, email: data.email, password: data.password
+//     })
+// }
 
 
 function Form(props) {
@@ -28,14 +29,16 @@ function Form(props) {
     const password = useRef({});
     password.current = watch("password", "");
 
-    const { mutate, isLoading } = useMutation(addUser, {
-        onSuccess: data => {
-            //   console.log(data);
+    const { mutate, isLoading } = useMutation(signup, {
+        onSuccess:  (responseData) => {
+            console.log(responseData.data);
             //   const message = "success"
             //   alert(message)
             setSuccess(true);
         },
         onError: (message) => {
+            // console.log(message);
+            // alert(message)
             if (message.toString().includes('409')) {
                 setErrMsg('Email has already been taken');
             }
