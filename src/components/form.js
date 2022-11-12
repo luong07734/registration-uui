@@ -2,20 +2,11 @@ import React from "react";
 import { useRef, useState } from "react";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import axios from 'axios'
 import { useForm } from 'react-hook-form'
-import { ErrorMessage } from "@hookform/error-message";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "react-query";
 import CircularProgress from '@material-ui/core/CircularProgress';
 import { signup } from "../apis";
-// const BASE_URL = 'http://localhost:3000/users/register'
-
-// const addUser = async (data) => {
-//     return await axios.post(BASE_URL, {
-//         fullname: data.fullname, email: data.email, password: data.password
-//     })
-// }
 
 
 function Form(props) {
